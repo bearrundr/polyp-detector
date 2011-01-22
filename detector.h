@@ -53,7 +53,7 @@ void GetGaussianCurvature(const cv::Mat &image,
   no polyps were found.
 */
 std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
-                             double smoothValue = 37);
+                             double smoothValue = 47);
 
 }
 
