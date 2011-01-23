@@ -4,11 +4,30 @@
 #include <opencv/cv.h>
 
 #include <list>
+#include <cstdio>
 
 namespace PolypDetector {
 
 struct Descriptor {
-  double confidence;
+  double maximumValue;
+  cv::Point maximumPosition;
+  cv::Rect boundingBox;
+
+  Descriptor(double maximumValue,
+             cv::Point maximumPosition,
+             cv::Rect boundingBox)
+  : maximumValue(maximumValue),
+    maximumPosition(maximumPosition),
+    boundingBox(boundingBox) {}
+
+  void Print() const {
+    std::printf("Max value %f: \n\
+Max position: %d, %d \n\
+Box: tl %d, %d br %d %d \n\n", maximumValue,
+                maximumPosition.x, maximumPosition.y,
+                boundingBox.tl().x, boundingBox.tl().y,
+                boundingBox.br().x, boundingBox.br().y);
+  }
 };
 
 /*!
@@ -77,6 +96,41 @@ void GetMeanCurvature(const cv::Mat &xDerivative,
 void GetPolypCurvature(const cv::Mat &gaussianCurvature,
                        const cv::Mat &meanCurvature,
                        cv::Mat *polypCurvature);
+
+/*!
+ \brief Findes bounding boxes of positive region of mask.
+ \param mask Mask to search in.
+ \returns List of bounding boxes.
+*/
+std::list<cv::Rect> GetBoundingBoxes(const cv::Mat &mask);
+
+/*!
+ \brief Inside bounding box finds value in position of
+ top left maximum.
+ \param surface Surface to search on.
+ \param boundingBox Box to search in.
+ \returns Pair of value and position.
+*/
+std::pair<double, cv::Point> DescribeMaximum(const cv::Mat &surface,
+                                             const cv::Rect &boundingBox);
+
+/*!
+ \brief Creates mask that selectes areas that will be described.
+ \param surface Surface that need to be described.
+ \returns Binary mask.
+*/
+cv::Mat GetMaskToDescribe(const cv::Mat &surface);
+
+/*!
+ \brief Describes surface. For areas determined by 
+ mask finds value and location of maximum, bounding box.
+ \param suface Surface to describe.
+ \param mask Only areas of surface with positive mask are
+ described.
+ \returns List of descriptors.
+*/
+std::list<Descriptor> Describe(const cv::Mat &surface,
+                               const cv::Mat &mask);
 
 /*!
   \brief Given an wireless capsule image tries to 

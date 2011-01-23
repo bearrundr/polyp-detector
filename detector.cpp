@@ -4,6 +4,8 @@
 #include <cmath>
 
 #include <list>
+#include <map>
+#include <vector>
 #include <algorithm>
 
 #include "./detector.h"
@@ -84,6 +86,67 @@ void GetPolypCurvature(const cv::Mat &gaussianCurvature,
   }
 }
 
+std::list<cv::Rect> GetBoundingBoxes(const cv::Mat &mask) {
+  std::vector<std::vector<cv::Point> > contours;
+  cv::findContours(const_cast<cv::Mat&>(mask),  // seems like
+                   // findContours need it nonconst.
+                   contours,
+                   CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+  std::list<cv::Rect> boxes;
+  std::printf("Contours count: %lu\n", contours.size());
+  for (size_t contourIndex = 0; contourIndex < contours.size();
+       ++contourIndex) {
+    boxes.push_back(cv::boundingRect(cv::Mat(contours[contourIndex])));
+  }
+  return boxes;
+}
+
+std::pair<double, cv::Point> DescribeMaximum(const cv::Mat &surface,
+                                             const cv::Rect &boundingBox) {
+  // assert surface double
+  cv::Point position = boundingBox.tl();
+  cv::Point end = boundingBox.br();
+  size_t x = position.x, y = position.y;
+  double value = surface.at<double>(position);
+  for (; x <= end.x; x++) {
+    for (; y <= end.y; y++) {
+      if (surface.at<double>(y, x) > value) {
+        value = surface.at<double>(y, x);
+        position = cv::Point(x, y);
+      }
+    }
+  }
+  return std::make_pair(value, position);
+}
+
+cv::Mat GetMaskToDescribe(const cv::Mat &surface) {
+  cv::Mat mask;
+  cv::Mat floatSurface;
+  surface.convertTo(floatSurface, CV_32FC1);
+  cv::threshold(floatSurface, mask, .01, 1.0, cv::THRESH_BINARY);
+  cv::Mat charMask;
+  mask.convertTo(charMask, CV_8UC1);
+
+  ShowHeatmap<char>(charMask, "Binary mask");
+
+  return charMask;
+}
+
+std::list<Descriptor> Describe(const cv::Mat &surface,
+                               const cv::Mat &mask) {
+  std::list<cv::Rect> boxes = GetBoundingBoxes(mask);
+  std::list<Descriptor> descriptors;
+  for (std::list<cv::Rect>::const_iterator box = boxes.begin();
+       box != boxes.end(); ++box) {
+    std::pair<double, cv::Point> maximum =
+      DescribeMaximum(surface, *box);
+    Descriptor descriptor(maximum.first, maximum.second,
+                          *box);
+    descriptors.push_back(descriptor);
+  }
+  return descriptors;
+}
+
 std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
                              double smoothValue,
                              double derivativeSmoothValue) {
@@ -97,7 +160,7 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   cv::Mat smoothImage;
   Smooth(grayImage, &smoothImage, smoothValue);
 
-  ShowImage(smoothImage, "Smooth image");
+  // ShowImage(smoothImage, "Smooth image");
 
   cv::Mat xDerivative, yDerivative, xxDerivative,
     xyDerivative, yyDerivative;
@@ -117,25 +180,25 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   Smooth(xyDerivative, &smoothXYDerivative, derivativeSmoothValue);
   Smooth(yyDerivative, &smoothYYDerivative, derivativeSmoothValue);
 
-  ShowHeatmap<float>(smoothXDerivative, "x derivative");
-  ShowHeatmap<float>(smoothYDerivative, "y derivative");
-  ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
-  ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
-  ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
+  // ShowHeatmap<float>(smoothXDerivative, "x derivative");
+  // ShowHeatmap<float>(smoothYDerivative, "y derivative");
+  // ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
+  // ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
+  // ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
 
   cv::Mat gaussianCurvature(smoothImage.size(), CV_64FC1);
   GetGaussianCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &gaussianCurvature);
 
-  ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
+  // ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
 
   cv::Mat meanCurvature(smoothImage.size(), CV_64FC1);
   GetMeanCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &meanCurvature);
 
-  ShowHeatmap<double>(meanCurvature, "Mean curvature");
+  // ShowHeatmap<double>(meanCurvature, "Mean curvature");
 
   cv::Mat polypCurvature(smoothImage.size(), CV_64FC1);
   GetPolypCurvature(gaussianCurvature, meanCurvature,
@@ -143,7 +206,8 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
 
   ShowHeatmap<double>(polypCurvature, "Polyp curvature");
 
-  std::list<Descriptor> result;
+  std::list<Descriptor> result = Describe(polypCurvature,
+                                          GetMaskToDescribe(polypCurvature));
   return result;
 }
 }

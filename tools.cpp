@@ -84,6 +84,8 @@ void ShowHeatmap(const cv::Mat &image, const std::string title) {
   ShowImage(heatmap, title);
 }
 
+template void ShowHeatmap<char>(const cv::Mat &image,
+                                 const std::string title);
 template void ShowHeatmap<float>(const cv::Mat &image,
                                  const std::string title);
 template void ShowHeatmap<double>(const cv::Mat &image,
