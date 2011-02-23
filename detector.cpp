@@ -160,7 +160,7 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   cv::Mat smoothImage;
   Smooth(grayImage, &smoothImage, smoothValue);
 
-  // ShowImage(smoothImage, "Smooth image");
+  ShowImage(smoothImage, "Smooth image");
 
   cv::Mat xDerivative, yDerivative, xxDerivative,
     xyDerivative, yyDerivative;
@@ -180,25 +180,25 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   Smooth(xyDerivative, &smoothXYDerivative, derivativeSmoothValue);
   Smooth(yyDerivative, &smoothYYDerivative, derivativeSmoothValue);
 
-  // ShowHeatmap<float>(smoothXDerivative, "x derivative");
-  // ShowHeatmap<float>(smoothYDerivative, "y derivative");
-  // ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
-  // ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
-  // ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
+  ShowHeatmap<float>(smoothXDerivative, "x derivative");
+  ShowHeatmap<float>(smoothYDerivative, "y derivative");
+  ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
+  ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
+  ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
 
   cv::Mat gaussianCurvature(smoothImage.size(), CV_64FC1);
   GetGaussianCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &gaussianCurvature);
 
-  // ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
+  ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
 
   cv::Mat meanCurvature(smoothImage.size(), CV_64FC1);
   GetMeanCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &meanCurvature);
 
-  // ShowHeatmap<double>(meanCurvature, "Mean curvature");
+  ShowHeatmap<double>(meanCurvature, "Mean curvature");
 
   cv::Mat polypCurvature(smoothImage.size(), CV_64FC1);
   GetPolypCurvature(gaussianCurvature, meanCurvature,

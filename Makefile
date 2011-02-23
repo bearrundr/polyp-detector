@@ -8,10 +8,12 @@ LIBS		= -L/opt/local/lib/ -lcxcore -lcv -lhighgui
 
 SOURCES		= main.cpp \
 		  detector.cpp \
-		  tools.cpp
+		  tools.cpp \
+		  test_set.cpp
 
 HEADERS		= detected.h \
-		  tools.h
+		  tools.h \
+		  test_set.h
 
 OBJECTS		= $(SOURCES:.cpp=.o)
 
