@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "./detector.h"
+#include "./test_set.h"
 #include "./tools.h"
 
 namespace PolypDetector {
@@ -93,7 +94,7 @@ std::list<cv::Rect> GetBoundingBoxes(const cv::Mat &mask) {
                    contours,
                    CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
   std::list<cv::Rect> boxes;
-  std::printf("Contours count: %lu\n", contours.size());
+  // std::printf("Contours count: %lu\n", contours.size());
   for (size_t contourIndex = 0; contourIndex < contours.size();
        ++contourIndex) {
     boxes.push_back(cv::boundingRect(cv::Mat(contours[contourIndex])));
@@ -119,15 +120,16 @@ std::pair<double, cv::Point> DescribeMaximum(const cv::Mat &surface,
   return std::make_pair(value, position);
 }
 
-cv::Mat GetMaskToDescribe(const cv::Mat &surface) {
+cv::Mat GetMaskToDescribe(const cv::Mat &surface,
+                          double threshold) {
   cv::Mat mask;
   cv::Mat floatSurface;
   surface.convertTo(floatSurface, CV_32FC1);
-  cv::threshold(floatSurface, mask, .01, 1.0, cv::THRESH_BINARY);
+  cv::threshold(floatSurface, mask, threshold, 1.0, cv::THRESH_BINARY);
   cv::Mat charMask;
   mask.convertTo(charMask, CV_8UC1);
 
-  ShowHeatmap<char>(charMask, "Binary mask");
+  // ShowHeatmap<char>(charMask, "Binary mask");
 
   return charMask;
 }
@@ -149,7 +151,8 @@ std::list<Descriptor> Describe(const cv::Mat &surface,
 
 std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
                              double smoothValue,
-                             double derivativeSmoothValue) {
+                             double derivativeSmoothValue,
+                             double curvatureThreshold) {
   cv::Size size = cv::Size(300, 300);
   cv::Mat resizedImage;
   cv::resize(capsuleImage, resizedImage, size);
@@ -160,7 +163,7 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   cv::Mat smoothImage;
   Smooth(grayImage, &smoothImage, smoothValue);
 
-  ShowImage(smoothImage, "Smooth image");
+  // ShowImage(smoothImage, "Smooth image");
 
   cv::Mat xDerivative, yDerivative, xxDerivative,
     xyDerivative, yyDerivative;
@@ -180,34 +183,72 @@ std::list<Descriptor> Locate(const cv::Mat &capsuleImage,
   Smooth(xyDerivative, &smoothXYDerivative, derivativeSmoothValue);
   Smooth(yyDerivative, &smoothYYDerivative, derivativeSmoothValue);
 
-  ShowHeatmap<float>(smoothXDerivative, "x derivative");
-  ShowHeatmap<float>(smoothYDerivative, "y derivative");
-  ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
-  ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
-  ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
+  // ShowHeatmap<float>(smoothXDerivative, "x derivative");
+  // ShowHeatmap<float>(smoothYDerivative, "y derivative");
+  // ShowHeatmap<float>(smoothXXDerivative, "xx derivative");
+  // ShowHeatmap<float>(smoothXYDerivative, "xy derivative");
+  // ShowHeatmap<float>(smoothYYDerivative, "yy derivative");
 
   cv::Mat gaussianCurvature(smoothImage.size(), CV_64FC1);
   GetGaussianCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &gaussianCurvature);
 
-  ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
+  // ShowHeatmap<double>(gaussianCurvature, "Gaussian curvature");
 
   cv::Mat meanCurvature(smoothImage.size(), CV_64FC1);
   GetMeanCurvature(smoothXDerivative, smoothYDerivative,
                        smoothXXDerivative, smoothXYDerivative,
                        smoothYYDerivative, &meanCurvature);
 
-  ShowHeatmap<double>(meanCurvature, "Mean curvature");
+  // ShowHeatmap<double>(meanCurvature, "Mean curvature");
 
   cv::Mat polypCurvature(smoothImage.size(), CV_64FC1);
   GetPolypCurvature(gaussianCurvature, meanCurvature,
                     &polypCurvature);
 
-  ShowHeatmap<double>(polypCurvature, "Polyp curvature");
+  // ShowHeatmap<double>(polypCurvature, "Polyp curvature");
 
-  std::list<Descriptor> result = Describe(polypCurvature,
-                                          GetMaskToDescribe(polypCurvature));
+  std::list<Descriptor> result =
+    Describe(polypCurvature,
+             GetMaskToDescribe(polypCurvature,
+                               curvatureThreshold));
   return result;
+}
+
+void GetError(const TestSet::Descriptor &correctDescriptor,
+              const std::list<Descriptor> &guessDescriptors,
+              std::vector< std::vector<size_t> > *errors,
+              std::list< TestSet::Descriptor > *alphaErrors,
+              std::list< TestSet::Descriptor > *betaErrors) {
+  double guess;
+  if (guessDescriptors.size() == 0) {
+    guess = -1;
+  } else {
+    guess = 1;
+  }
+
+  double correct;
+  if (correctDescriptor.polypoidFormation < 0) {
+    correct = -1;
+  } else {
+    correct = 1;
+  }
+
+  if (correct == 1 && guess == 1) {
+    (*errors)[0][0] += 1;
+  } else if (correct == 1 && guess == -1) {
+    (*errors)[0][1] += 1;
+    if (betaErrors) {
+      betaErrors->push_back(correctDescriptor);
+    }
+  } else if (correct == -1 && guess == 1) {
+    (*errors)[1][0] += 1;
+    if (alphaErrors) {
+      alphaErrors->push_back(correctDescriptor);
+    }
+  } else if (correct == -1 && guess == -1) {
+    (*errors)[1][1] += 1;
+  }
 }
 }

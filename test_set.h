@@ -3,10 +3,9 @@
 
 #include <cstdio>
 
-
 #include <list>
+#include <vector>
 #include <string>
-#include <fstream>
 
 namespace TestSet {
 
@@ -64,6 +63,11 @@ void SplitPath(const std::string &path,
                std::string *directory, std::string *name,
                std::string *extension);
 
+
+
+double GetError(const std::vector< std::vector<size_t> > &errors,
+                double alphaErrorWeight = 1,
+                double betaErrorWeight = 4);
 }
 
 #endif /* _TEST_SET_H_ */

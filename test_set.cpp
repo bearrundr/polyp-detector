@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "./test_set.h"
 
@@ -22,6 +23,10 @@ void ReadDescriptors(const std::string &descriptorsPath,
   while (!feof(descriptorsFile)) {
     char pathBuffer[1000];
     std::fscanf(descriptorsFile, "%s", pathBuffer);
+    if (*pathBuffer == '#') {
+      std::fscanf(descriptorsFile, "%*[^\n]\n");
+      continue;
+    }
     std::string path(pathBuffer);
 
     std::string directory, name, extention;
@@ -51,7 +56,6 @@ void GetDirectory(const std::string &path, std::string *directory) {
   } else {
     *directory = path.substr(0, slashPosition);
   }
-  std::printf("GetDirectory: %s %s\n", path.c_str(), directory->c_str());
 }
 
 void SplitPath(const std::string &path,
@@ -81,7 +85,16 @@ void SplitPath(const std::string &path,
     *name = path.substr(slashPosition + 1, dotPosition - slashPosition - 1);
     *extension = path.substr(dotPosition + 1);
   }
-  std::printf("SplitPath: %s %s %s %s\n", path.c_str(),
-              directory->c_str(), name->c_str(), extension->c_str());
+}
+
+double GetError(const std::vector< std::vector<size_t> > &errors,
+                double alphaErrorWeight,
+                double betaErrorWeight) {
+  size_t experiments = errors[0][0] + errors[0][1] +
+    errors[1][0] + errors[1][1];
+  double error = (static_cast<double>(errors[0][1]) * betaErrorWeight +
+                  static_cast<double>(errors[1][0]) * alphaErrorWeight)
+    / experiments;
+  return error;
 }
 }
